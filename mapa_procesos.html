@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CSP eliminada: app local file:// no requiere CSP y causaba bloqueos de CDN -->
+    <title>Mapa de Procesos | CODANOR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+/* ===== VARIABLES ===== */
+:root {
+    --primary: #0056b3;
+    --primary-light: #0088CC;
+    --accent: #12A79D;
+    --estrategico: #0088CC;
+    --estrategico-bg: #e6f3fa;
+    --estrategico-border: #b3d9f0;
+    --operativo: #12A79D;
+    --operativo-bg: #e6f7f5;
+    --operativo-border: #a3ddd8;
+    --apoyo: #6c757d;
+    --apoyo-bg: #f0f1f2;
+    --apoyo-border: #c8cbce;
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --text: #212529;
+    --text-light: #6c757d;
+    --border: #dee2e6;
+    --danger: #dc3545;
+    --warning: #ffc107;
+    --success: #28a745;
+    --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+    --radius: 8px;
+    --radius-sm: 4px;
+    --font-title: 'Poppins', sans-serif;
+    --font-body: 'Nunito Sans', sans-serif;
+    --header-h: 56px;
+    --toolbar-h: 48px;
+}
+
+/* ===== RESET ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ===== HEADER ===== */
+.header {
+    height: var(--header-h);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    z-index: 100;
+    position: relative;
+}
+.header-logo {
+    height: 32px;
+    filter: brightness(0) invert(1);
+}
+.header-title {
+    font-family: var(--font-title);
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.header-selectors {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+.header-selectors label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+}
+.header-selectors select {
+    padding: 4px 8px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.15);
+    color: white;
+    font-family: var(--font-body);
+    font-size: 13px;
+    cursor: pointer;
+    min-width: 140px;
+}
+.header-selectors select option { color: var(--text); background: white; }
+.header-selectors select:focus { outline: none; border-color: white; }
+
+.btn-header {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+.btn-header:hover { background: rgba(255,255,255,0.35); }
+
+/* ===== TOOLBAR ===== */
+.toolbar {
+    height: var(--toolbar-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    z-index: 90;
+    position: relative;
+}
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.toolbar-sep {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+    margin: 0 8px;
+}
+.btn-tool {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.btn-tool:hover { background: var(--bg); border-color: var(--primary-light); }
+.btn-tool.active { background: var(--primary-light); color: white; border-color: var(--primary-light); }
+.btn-tool.danger { color: var(--danger); }
+.btn-tool.danger:hover { background: #fde8ea; border-color: var(--danger); }
+.btn-tool.success { color: var(--success); }
+.btn-tool.success:hover { background: #e8f5e9; border-color: var(--success); }
+
+.toolbar-info {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+/* ===== CANVAS AREA ===== */
+.canvas-container {
+    height: calc(100vh - var(--header-h) - var(--toolbar-h));
+    overflow: auto;
+    position: relative;
+    background: var(--bg);
+}
+.canvas {
+    position: relative;
+    min-width: 100%;
+    min-height: 100%;
+    width: 1400px;
+    height: 900px;
+}
+
+/* ===== SVG OVERLAY ===== */
+.svg-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+.svg-overlay line, .svg-overlay path { pointer-events: stroke; }
+.svg-overlay .conn-line {
+    stroke: #495057;
+    stroke-width: 2;
+    fill: none;
+    cursor: pointer;
+    pointer-events: stroke;
+}
+.svg-overlay .conn-line:hover { stroke: var(--danger); stroke-width: 3; }
+.svg-overlay .conn-line.tipo-flujo { stroke: var(--primary-light); stroke-dasharray: none; }
+.svg-overlay .conn-line.tipo-dependencia { stroke: var(--accent); stroke-dasharray: 8 4; }
+.svg-overlay .conn-line.tipo-informacion { stroke: var(--warning); stroke-dasharray: 4 4; }
+.svg-overlay marker path { fill: #495057; }
+.svg-overlay .conn-temp {
+    stroke: var(--danger);
+    stroke-width: 2;
+    stroke-dasharray: 6 3;
+    fill: none;
+}
+
+/* ===== CAPAS ===== */
+.capa {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    border-radius: var(--radius);
+    border: 2px dashed;
+    padding: 12px 16px;
+    min-height: 180px;
+}
+.capa-label {
+    font-family: var(--font-title);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    position: absolute;
+    left: 16px;
+    top: 8px;
+    pointer-events: none;
+    user-select: none;
+}
+.capa-estrategico {
+    top: 20px;
+    height: 240px;
+    background: var(--estrategico-bg);
+    border-color: var(--estrategico-border);
+}
+.capa-estrategico .capa-label { color: var(--estrategico); }
+
+.capa-operativo {
+    top: 280px;
+    height: 280px;
+    background: var(--operativo-bg);
+    border-color: var(--operativo-border);
+}
+.capa-operativo .capa-label { color: var(--operativo); }
+
+.capa-apoyo {
+    top: 580px;
+    height: 240px;
+    background: var(--apoyo-bg);
+    border-color: var(--apoyo-border);
+}
+.capa-apoyo .capa-label { color: var(--apoyo); }
+
+/* ===== ENTRADA/SALIDA ===== */
+.capa-io {
+    position: absolute;
+    top: 280px;
+    height: 280px;
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    font-family: var(--font-title);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: white;
+    border-radius: var(--radius);
+    user-select: none;
+    z-index: 5;
+}
+.capa-io.entrada {
+    left: -70px;
+    background: linear-gradient(180deg, var(--accent), #0e8a82);
+}
+.capa-io.salida {
+    right: -70px;
+    background: linear-gradient(180deg, var(--primary-light), var(--primary));
+}
+
+/* ===== CAJA PROCESO ===== */
+.proceso {
+    position: absolute;
+    min-width: 100px;
+    min-height: 50px;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    cursor: grab;
+    z-index: 20;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.2s, border-color 0.2s;
+    user-select: none;
+}
+.proceso:hover { box-shadow: var(--shadow-lg); }
+.proceso.dragging { cursor: grabbing; opacity: 0.85; z-index: 50; box-shadow: var(--shadow-lg); }
+.proceso.selected { border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(0,136,204,0.25); }
+.proceso.conn-source { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(220,53,69,0.25); }
+
+.proceso-nombre {
+    font-family: var(--font-title);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    word-wrap: break-word;
+    line-height: 1.3;
+}
+.proceso-badge {
+    display: block;
+    text-align: center;
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--text-light);
+    font-weight: 600;
+}
+.proceso.capa-estrategico { border-left: 4px solid var(--estrategico); }
+.proceso.capa-operativo { border-left: 4px solid var(--operativo); }
+.proceso.capa-apoyo { border-left: 4px solid var(--apoyo); }
+
+/* Puntos de conexion */
+.conn-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    border: 2px solid white;
+    position: absolute;
+    cursor: crosshair;
+    z-index: 30;
+    opacity: 0;
+    transition: opacity 0.2s;
+    box-shadow: 0 0 0 1px var(--primary-light);
+}
+.proceso:hover .conn-dot, .proceso.conn-source .conn-dot { opacity: 1; }
+.conn-dot.top { top: -6px; left: 50%; transform: translateX(-50%); }
+.conn-dot.bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
+.conn-dot.left { left: -6px; top: 50%; transform: translateY(-50%); }
+.conn-dot.right { right: -6px; top: 50%; transform: translateY(-50%); }
+
+/* Resize handles */
+.resize-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--primary-light);
+    border: 2px solid white;
+    z-index: 35;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.proceso:hover .resize-handle, .proceso.selected .resize-handle { opacity: 1; }
+.resize-handle.se { bottom: -4px; right: -4px; cursor: se-resize; border-radius: 0 0 3px 0; }
+.resize-handle.sw { bottom: -4px; left: -4px; cursor: sw-resize; border-radius: 0 0 0 3px; }
+.resize-handle.ne { top: -4px; right: -4px; cursor: ne-resize; border-radius: 0 3px 0 0; }
+.resize-handle.e { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; border-radius: 0 3px 3px 0; height: 20px; width: 6px; }
+.resize-handle.s { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; width: 20px; height: 6px; border-radius: 0 0 3px 3px; }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+.modal {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    width: 520px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+}
+.modal-header h2 {
+    font-family: var(--font-title);
+    font-size: 16px;
+    font-weight: 600;
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 4px;
+    line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px; }
+.modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.form-group { margin-bottom: 14px; }
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text);
+    transition: border-color 0.2s;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px rgba(0,136,204,0.15);
+}
+.form-group textarea { resize: vertical; min-height: 60px; }
+
+.btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-primary { background: var(--primary-light); color: white; border-color: var(--primary-light); }
+.btn-primary:hover { background: var(--primary); }
+.btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+.btn-danger:hover { background: #c82333; }
+.btn-secondary { background: var(--surface); color: var(--text); }
+.btn-secondary:hover { background: var(--bg); }
+
+/* ===== PANEL LATERAL (FICHA PROCESO) ===== */
+.panel-lateral {
+    position: fixed;
+    top: 0;
+    right: -420px;
+    width: 400px;
+    height: 100vh;
+    background: var(--surface);
+    box-shadow: -4px 0 16px rgba(0,0,0,0.15);
+    z-index: 200;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+.panel-lateral.open { right: 0; }
+.panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.panel-header h3 {
+    font-family: var(--font-title);
+    font-size: 15px;
+    font-weight: 600;
+}
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+.panel-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+/* ===== LEYENDA ===== */
+.leyenda {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 11px;
+    box-shadow: var(--shadow);
+    z-index: 80;
+}
+.leyenda-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-light);
+}
+.leyenda-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+.leyenda-line {
+    width: 24px;
+    height: 2px;
+}
+.leyenda-line.flujo { background: var(--primary-light); }
+.leyenda-line.dependencia { background: var(--accent); border-top: 2px dashed var(--accent); height: 0; }
+.leyenda-line.informacion { background: var(--warning); border-top: 2px dotted var(--warning); height: 0; }
+
+/* ===== TOAST ===== */
+.toast-container {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.toast {
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    animation: toastIn 0.3s ease;
+    max-width: 320px;
+}
+.toast.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.toast.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.toast.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+
+/* ===== CONTEXT MENU ===== */
+.context-menu {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 500;
+    min-width: 180px;
+    padding: 4px 0;
+    display: none;
+}
+.context-menu.open { display: block; }
+.context-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+}
+.context-item:hover { background: var(--bg); }
+.context-item.danger { color: var(--danger); }
+.context-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .header-title { font-size: 15px; }
+    .capa-io { display: none; }
+    .panel-lateral { width: 340px; }
+}
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+    <img src="https://codanor.com/assets/img/logo_web-50.png" alt="CODANOR" class="header-logo">
+    <span class="header-title">Mapa de Procesos</span>
+    <div class="header-selectors">
+        <label>Cliente:</label>
+        <select id="selCliente"><option value="">(Click en Clientes para crear)</option></select>
+        <button class="btn-header" id="btnGestClientes" title="Gestionar clientes">Clientes</button>
+        <label>Norma:</label>
+        <select id="selNorma">
+            <option value="">-- Seleccionar --</option>
+            <option value="ISO9001">ISO 9001 - Calidad</option>
+            <option value="ISO14001">ISO 14001 - Ambiental</option>
+            <option value="ISO27001">ISO 27001 - Seg. Informacion</option>
+            <option value="ISO45001">ISO 45001 - SST</option>
+            <option value="ISO22301">ISO 22301 - Continuidad</option>
+            <option value="ENS">ENS - Seg. Nacional</option>
+        </select>
+    </div>
+</div>
+
+<!-- ===== TOOLBAR ===== -->
+<div class="toolbar">
+    <div class="toolbar-group">
+        <button class="btn-tool" id="btnModoSeleccion" title="Modo seleccion (S)">&#9754; Seleccionar</button>
+        <button class="btn-tool" id="btnModoConexion" title="Modo conexion (C)">&#10140; Conectar</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+        <button class="btn-tool" id="btnAddEstrategico" title="Anadir proceso estrategico">+ Estrategico</button>
+        <button class="btn-tool" id="btnAddOperativo" title="Anadir proceso operativo">+ Operativo</button>
+        <button class="btn-tool" id="btnAddApoyo" title="Anadir proceso de apoyo">+ Apoyo</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+        <button class="btn-tool" id="btnPlantilla" title="Cargar plantilla predefinida para esta norma">Plantilla</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+        <button class="btn-tool success" id="btnGuardar" title="Guardar mapa (Ctrl+S)">Guardar</button>
+        <button class="btn-tool" id="btnExportJSON" title="Exportar como JSON">JSON</button>
+        <button class="btn-tool" id="btnImportJSON" title="Importar desde JSON">Importar</button>
+        <button class="btn-tool" id="btnExportPDF" title="Exportar como PDF">PDF</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+        <button class="btn-tool danger" id="btnEliminarSel" title="Eliminar seleccionado (Supr)">Eliminar</button>
+    </div>
+    <span class="toolbar-info" id="toolbarInfo">Selecciona un cliente y una norma para empezar</span>
+</div>
+
+<!-- ===== CANVAS ===== -->
+<div class="canvas-container" id="canvasContainer">
+    <div class="canvas" id="canvas">
+        <!-- Capas -->
+        <div class="capa capa-estrategico" data-capa="estrategico">
+            <span class="capa-label">Procesos Estrategicos</span>
+        </div>
+        <div class="capa capa-operativo" data-capa="operativo">
+            <span class="capa-label">Procesos Operativos</span>
+        </div>
+        <div class="capa capa-apoyo" data-capa="apoyo">
+            <span class="capa-label">Procesos de Apoyo</span>
+        </div>
+
+        <!-- IO lateral -->
+        <div class="capa-io entrada" style="left:20px; top:280px;">ENTRADA</div>
+        <div class="capa-io salida" style="right:20px; top:280px;">SALIDA</div>
+
+        <!-- SVG overlay para conexiones -->
+        <svg class="svg-overlay" id="svgOverlay">
+            <defs>
+                <marker id="arrowFlujo" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <path d="M0,0 L10,3.5 L0,7" fill="#0088CC"/>
+                </marker>
+                <marker id="arrowDep" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <path d="M0,0 L10,3.5 L0,7" fill="#12A79D"/>
+                </marker>
+                <marker id="arrowInfo" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <path d="M0,0 L10,3.5 L0,7" fill="#ffc107"/>
+                </marker>
+                <marker id="arrowTemp" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <path d="M0,0 L10,3.5 L0,7" fill="#dc3545"/>
+                </marker>
+            </defs>
+        </svg>
+    </div>
+</div>
+
+<!-- ===== LEYENDA ===== -->
+<div class="leyenda">
+    <div class="leyenda-title">Conexiones</div>
+    <div class="leyenda-item"><div class="leyenda-line flujo"></div> Flujo</div>
+    <div class="leyenda-item"><div class="leyenda-line dependencia"></div> Dependencia</div>
+    <div class="leyenda-item"><div class="leyenda-line informacion"></div> Informacion</div>
+</div>
+
+<!-- ===== PANEL LATERAL (FICHA PROCESO) ===== -->
+<div class="panel-lateral" id="panelFicha">
+    <div class="panel-header">
+        <h3 id="panelTitulo">Ficha de Proceso</h3>
+        <button class="modal-close" id="panelClose">&times;</button>
+    </div>
+    <div class="panel-body">
+        <input type="hidden" id="fichaId">
+        <div class="form-group">
+            <label>Nombre del proceso</label>
+            <input type="text" id="fichaNombre" placeholder="Ej: Revision por la Direccion">
+        </div>
+        <div class="form-group">
+            <label>Capa</label>
+            <select id="fichaCapa">
+                <option value="estrategico">Estrategico</option>
+                <option value="operativo">Operativo</option>
+                <option value="apoyo">Apoyo</option>
+            </select>
+        </div>
+        <div class="form-group" style="display:flex;gap:12px;">
+            <div style="flex:1;">
+                <label>Ancho (px)</label>
+                <input type="number" id="fichaAncho" min="100" max="600" step="10" placeholder="160">
+            </div>
+            <div style="flex:1;">
+                <label>Alto (px)</label>
+                <input type="number" id="fichaAlto" min="50" max="400" step="10" placeholder="auto">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descripcion</label>
+            <textarea id="fichaDescripcion" rows="3" placeholder="Descripcion del proceso..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Objetivo</label>
+            <textarea id="fichaObjetivo" rows="2" placeholder="Objetivo que persigue este proceso..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Responsable</label>
+            <input type="text" id="fichaResponsable" placeholder="Ej: Director de Calidad">
+        </div>
+        <div class="form-group">
+            <label>Recursos</label>
+            <textarea id="fichaRecursos" rows="2" placeholder="Recursos necesarios (humanos, tecnologicos, materiales)..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Indicadores (KPIs)</label>
+            <textarea id="fichaIndicadores" rows="3" placeholder="Indicadores de rendimiento del proceso..."></textarea>
+        </div>
+    </div>
+    <div class="panel-footer">
+        <button class="btn btn-danger" id="btnFichaEliminar">Eliminar</button>
+        <button class="btn btn-secondary" id="btnFichaCancelar">Cancelar</button>
+        <button class="btn btn-primary" id="btnFichaGuardar">Guardar</button>
+    </div>
+</div>
+
+<!-- ===== MODAL CLIENTES ===== -->
+<div class="modal-overlay" id="modalClientes">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Gestionar Clientes</h2>
+            <button class="modal-close" onclick="cerrarModal('modalClientes')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="display:flex;gap:8px;">
+                <input type="text" id="inputNuevoCliente" placeholder="Nombre del nuevo cliente" style="flex:1;">
+                <button class="btn btn-primary" id="btnCrearCliente">Crear</button>
+            </div>
+            <div id="listaClientes" style="margin-top:12px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL TIPO CONEXION ===== -->
+<div class="modal-overlay" id="modalTipoConn">
+    <div class="modal" style="width:320px;">
+        <div class="modal-header">
+            <h2>Tipo de conexion</h2>
+            <button class="modal-close" onclick="cerrarModal('modalTipoConn')">&times;</button>
+        </div>
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn btn-primary" onclick="confirmarConexion('flujo')">Flujo</button>
+            <button class="btn" style="background:var(--accent);color:white;border-color:var(--accent);" onclick="confirmarConexion('dependencia')">Dependencia</button>
+            <button class="btn" style="background:var(--warning);color:#333;border-color:var(--warning);" onclick="confirmarConexion('informacion')">Informacion</button>
+            <button class="btn btn-secondary" onclick="cancelarConexion()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL PLANTILLA ===== -->
+<div class="modal-overlay" id="modalPlantilla">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Cargar plantilla</h2>
+            <button class="modal-close" onclick="cerrarModal('modalPlantilla')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:12px;color:var(--text-light);font-size:13px;">
+                Esto reemplazara el mapa actual con la plantilla predefinida para la norma seleccionada.
+            </p>
+            <button class="btn btn-primary" id="btnConfirmPlantilla" style="width:100%;">Cargar plantilla</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== CONTEXT MENU ===== -->
+<div class="context-menu" id="contextMenu">
+    <div class="context-item" data-action="editar">Editar ficha</div>
+    <div class="context-item" data-action="duplicar">Duplicar</div>
+    <div class="context-sep"></div>
+    <div class="context-item danger" data-action="eliminar">Eliminar</div>
+</div>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== IMPORT FILE INPUT (oculto) ===== -->
+<input type="file" id="fileImport" accept=".json" style="display:none;">
+
+<!-- CDN para exportar PDF — async para no bloquear la app si fallan -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" async></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" async></script>
+
+<script>
+/* =====================================================================
+   MAPA DE PROCESOS — CODANOR
+   Editor visual de mapas de procesos multi-cliente / multi-norma
+   v1.0.0 — 2026-05-10
+   ===================================================================== */
+
+// ===== UTILIDADES =====
+function escHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function uuid() {
+    return 'p' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
+function toast(msg, tipo) {
+    tipo = tipo || 'info';
+    var c = document.getElementById('toastContainer');
+    var t = document.createElement('div');
+    t.className = 'toast ' + tipo;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(function() { t.remove(); }, 3000);
+}
+
+// ===== ESTADO GLOBAL =====
+var APP = {
+    db: null,
+    modo: 'seleccion', // 'seleccion' | 'conexion'
+    clienteActual: '',
+    normaActual: '',
+    procesos: [],
+    conexiones: [],
+    seleccionId: null,
+    connOrigen: null,
+    connTemp: null,
+    isDragging: false,
+    dragId: null,
+    dragOffX: 0,
+    dragOffY: 0,
+    isResizing: false,
+    resizeId: null,
+    resizeDir: null,
+    resizeStartX: 0,
+    resizeStartY: 0,
+    resizeStartW: 0,
+    resizeStartH: 0
+};
+
+// ===== IndexedDB =====
+function abrirDB(cb) {
+    var req = indexedDB.open('MapaProcesosDB', 2);
+    req.onupgradeneeded = function(e) {
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains('clientes')) {
+            db.createObjectStore('clientes', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('mapas')) {
+            db.createObjectStore('mapas', { keyPath: 'clave' });
+        }
+    };
+    req.onsuccess = function(e) {
+        APP.db = e.target.result;
+        cb();
+    };
+    req.onerror = function() { toast('Error al abrir la base de datos', 'error'); };
+}
+
+function dbTx(store, mode) {
+    return APP.db.transaction(store, mode).objectStore(store);
+}
+
+// ===== CLIENTES =====
+function cargarClientes(cb) {
+    var s = dbTx('clientes', 'readonly');
+    var req = s.getAll();
+    req.onsuccess = function() {
+        var clientes = req.result || [];
+        var sel = document.getElementById('selCliente');
+        // Preservar seleccion
+        var actual = sel.value;
+        sel.innerHTML = '<option value="">(Seleccionar cliente)</option>';
+        clientes.sort(function(a, b) { return a.nombre.localeCompare(b.nombre); });
+        clientes.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = escHtml(c.nombre);
+            sel.appendChild(opt);
+        });
+        if (actual) sel.value = actual;
+        if (cb) cb(clientes);
+    };
+}
+
+function crearCliente(nombre) {
+    if (!nombre || !nombre.trim()) return;
+    var id = 'cli_' + Date.now().toString(36);
+    var s = dbTx('clientes', 'readwrite');
+    s.put({ id: id, nombre: nombre.trim(), creadoEn: new Date().toISOString() });
+    s.transaction.oncomplete = function() {
+        cargarClientes(function() {
+            // Auto-seleccionar el cliente recien creado
+            var sel = document.getElementById('selCliente');
+            sel.value = id;
+            APP.clienteActual = id;
+            actualizarInfo();
+            console.log('[MapaProcesos] Cliente creado y auto-seleccionado:', id, nombre.trim());
+        });
+        renderListaClientes();
+        toast('Cliente creado: ' + nombre.trim() + ' (seleccionado)', 'success');
+    };
+}
+
+function eliminarCliente(id) {
+    if (!confirm('Eliminar este cliente y todos sus mapas?')) return;
+    var s = dbTx('clientes', 'readwrite');
+    s.delete(id);
+    s.transaction.oncomplete = function() {
+        // Eliminar mapas asociados
+        var normas = ['ISO9001','ISO14001','ISO27001','ISO45001','ISO22301','ENS'];
+        var s2 = dbTx('mapas', 'readwrite');
+        normas.forEach(function(n) { s2.delete(id + '_' + n); });
+        s2.transaction.oncomplete = function() {
+            if (APP.clienteActual === id) {
+                APP.clienteActual = '';
+                document.getElementById('selCliente').value = '';
+                limpiarCanvas();
+            }
+            cargarClientes();
+            renderListaClientes();
+            toast('Cliente eliminado', 'info');
+        };
+    };
+}
+
+function renderListaClientes() {
+    var div = document.getElementById('listaClientes');
+    var s = dbTx('clientes', 'readonly');
+    var req = s.getAll();
+    req.onsuccess = function() {
+        var clientes = req.result || [];
+        if (clientes.length === 0) {
+            div.innerHTML = '<p style="color:var(--text-light);font-size:13px;">No hay clientes creados.</p>';
+            return;
+        }
+        var html = '';
+        clientes.sort(function(a, b) { return a.nombre.localeCompare(b.nombre); });
+        clientes.forEach(function(c) {
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">';
+            html += '<span style="font-weight:600;">' + escHtml(c.nombre) + '</span>';
+            html += '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;" onclick="eliminarCliente(\'' + escHtml(c.id) + '\')">Eliminar</button>';
+            html += '</div>';
+        });
+        div.innerHTML = html;
+    };
+}
+
+// ===== GUARDAR / CARGAR MAPA =====
+function claveActual() {
+    return APP.clienteActual + '_' + APP.normaActual;
+}
+
+function guardarMapa() {
+    if (!APP.clienteActual || !APP.normaActual) {
+        toast('Selecciona un cliente y una norma', 'error');
+        return;
+    }
+    var datos = {
+        clave: claveActual(),
+        clienteId: APP.clienteActual,
+        normaId: APP.normaActual,
+        procesos: APP.procesos,
+        conexiones: APP.conexiones,
+        metadata: {
+            modificadoEn: new Date().toISOString()
+        }
+    };
+    var s = dbTx('mapas', 'readwrite');
+    s.put(datos);
+    s.transaction.oncomplete = function() {
+        toast('Mapa guardado', 'success');
+        actualizarInfo();
+    };
+}
+
+function cargarMapa() {
+    if (!APP.clienteActual || !APP.normaActual) {
+        limpiarCanvas();
+        return;
+    }
+    var s = dbTx('mapas', 'readonly');
+    var req = s.get(claveActual());
+    req.onsuccess = function() {
+        if (req.result) {
+            APP.procesos = req.result.procesos || [];
+            APP.conexiones = req.result.conexiones || [];
+        } else {
+            APP.procesos = [];
+            APP.conexiones = [];
+        }
+        APP.seleccionId = null;
+        cerrarPanel();
+        renderTodo();
+        actualizarInfo();
+    };
+}
+
+// ===== RENDER =====
+function limpiarCanvas() {
+    APP.procesos = [];
+    APP.conexiones = [];
+    APP.seleccionId = null;
+    cerrarPanel();
+    renderTodo();
+    actualizarInfo();
+}
+
+function renderTodo() {
+    renderProcesos();
+    renderConexiones();
+}
+
+function renderProcesos() {
+    // Eliminar nodos existentes
+    var canvas = document.getElementById('canvas');
+    canvas.querySelectorAll('.proceso').forEach(function(el) { el.remove(); });
+
+    APP.procesos.forEach(function(p) {
+        var div = document.createElement('div');
+        div.className = 'proceso capa-' + p.capa;
+        div.id = 'proc_' + p.id;
+        div.dataset.id = p.id;
+        div.style.left = p.x + 'px';
+        div.style.top = p.y + 'px';
+        div.style.width = (p.w || 160) + 'px';
+        if (p.h) div.style.height = p.h + 'px';
+        if (p.id === APP.seleccionId) div.classList.add('selected');
+
+        var nombre = document.createElement('div');
+        nombre.className = 'proceso-nombre';
+        nombre.textContent = p.nombre;
+        div.appendChild(nombre);
+
+        // Badge con info resumen
+        if (p.responsable) {
+            var badge = document.createElement('span');
+            badge.className = 'proceso-badge';
+            badge.textContent = p.responsable;
+            div.appendChild(badge);
+        }
+
+        // Puntos de conexion
+        ['top','bottom','left','right'].forEach(function(pos) {
+            var dot = document.createElement('div');
+            dot.className = 'conn-dot ' + pos;
+            dot.dataset.pos = pos;
+            dot.dataset.procId = p.id;
+            div.appendChild(dot);
+        });
+
+        // Resize handles
+        ['se','e','s'].forEach(function(dir) {
+            var handle = document.createElement('div');
+            handle.className = 'resize-handle ' + dir;
+            handle.dataset.resize = dir;
+            handle.dataset.procId = p.id;
+            div.appendChild(handle);
+        });
+
+        canvas.appendChild(div);
+    });
+}
+
+function renderConexiones() {
+    var svg = document.getElementById('svgOverlay');
+    // Eliminar lineas existentes (no markers)
+    svg.querySelectorAll('.conn-line').forEach(function(el) { el.remove(); });
+
+    APP.conexiones.forEach(function(c) {
+        var pOrigen = APP.procesos.find(function(p) { return p.id === c.origen; });
+        var pDestino = APP.procesos.find(function(p) { return p.id === c.destino; });
+        if (!pOrigen || !pDestino) return;
+
+        var pts = calcPuntosConexion(pOrigen, pDestino);
+        var line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        var d = curvaPath(pts.x1, pts.y1, pts.x2, pts.y2, pts.dir1, pts.dir2);
+        line.setAttribute('d', d);
+        line.classList.add('conn-line', 'tipo-' + c.tipo);
+        line.dataset.id = c.id;
+
+        var marker = c.tipo === 'flujo' ? 'arrowFlujo' : c.tipo === 'dependencia' ? 'arrowDep' : 'arrowInfo';
+        line.setAttribute('marker-end', 'url(#' + marker + ')');
+
+        line.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (confirm('Eliminar esta conexion?')) {
+                APP.conexiones = APP.conexiones.filter(function(cx) { return cx.id !== c.id; });
+                renderConexiones();
+            }
+        });
+
+        svg.appendChild(line);
+    });
+}
+
+function calcPuntosConexion(pO, pD) {
+    var W1 = pO.w || 160, H1 = pO.h || 60;
+    var W2 = pD.w || 160, H2 = pD.h || 60;
+    var cx1 = pO.x + W1/2, cy1 = pO.y + H1/2;
+    var cx2 = pD.x + W2/2, cy2 = pD.y + H2/2;
+    var dx = cx2 - cx1, dy = cy2 - cy1;
+
+    var x1, y1, x2, y2, dir1, dir2;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) {
+            x1 = pO.x + W1; y1 = pO.y + H1/2; dir1 = 'right';
+            x2 = pD.x; y2 = pD.y + H2/2; dir2 = 'left';
+        } else {
+            x1 = pO.x; y1 = pO.y + H1/2; dir1 = 'left';
+            x2 = pD.x + W2; y2 = pD.y + H2/2; dir2 = 'right';
+        }
+    } else {
+        if (dy > 0) {
+            x1 = pO.x + W1/2; y1 = pO.y + H1; dir1 = 'bottom';
+            x2 = pD.x + W2/2; y2 = pD.y; dir2 = 'top';
+        } else {
+            x1 = pO.x + W1/2; y1 = pO.y; dir1 = 'top';
+            x2 = pD.x + W2/2; y2 = pD.y + H2; dir2 = 'bottom';
+        }
+    }
+
+    return { x1: x1, y1: y1, x2: x2, y2: y2, dir1: dir1, dir2: dir2 };
+}
+
+function curvaPath(x1, y1, x2, y2, dir1, dir2) {
+    var offset = 50;
+    var cx1 = x1, cy1 = y1, cx2 = x2, cy2 = y2;
+    if (dir1 === 'right') cx1 = x1 + offset;
+    else if (dir1 === 'left') cx1 = x1 - offset;
+    else if (dir1 === 'bottom') cy1 = y1 + offset;
+    else if (dir1 === 'top') cy1 = y1 - offset;
+
+    if (dir2 === 'right') cx2 = x2 + offset;
+    else if (dir2 === 'left') cx2 = x2 - offset;
+    else if (dir2 === 'bottom') cy2 = y2 + offset;
+    else if (dir2 === 'top') cy2 = y2 - offset;
+
+    return 'M' + x1 + ',' + y1 + ' C' + cx1 + ',' + cy1 + ' ' + cx2 + ',' + cy2 + ' ' + x2 + ',' + y2;
+}
+
+// ===== DRAG & DROP + RESIZE =====
+function initDrag() {
+    var canvas = document.getElementById('canvas');
+
+    canvas.addEventListener('pointerdown', function(e) {
+        var resizeHandle = e.target.closest('.resize-handle');
+        var proc = e.target.closest('.proceso');
+        var dot = e.target.closest('.conn-dot');
+
+        // --- RESIZE ---
+        if (resizeHandle && proc) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = proc.dataset.id;
+            var p = APP.procesos.find(function(pr) { return pr.id === id; });
+            if (!p) return;
+            APP.seleccionId = id;
+            APP.isResizing = true;
+            APP.resizeId = id;
+            APP.resizeDir = resizeHandle.dataset.resize;
+            APP.resizeStartX = e.clientX;
+            APP.resizeStartY = e.clientY;
+            APP.resizeStartW = p.w || 160;
+            APP.resizeStartH = p.h || proc.offsetHeight || 60;
+            proc.setPointerCapture(e.pointerId);
+            renderProcesos();
+            var el2 = document.getElementById('proc_' + id);
+            if (el2) el2.setPointerCapture(e.pointerId);
+            return;
+        }
+
+        // Click en punto de conexion
+        if (dot && APP.modo === 'conexion') {
+            e.preventDefault();
+            e.stopPropagation();
+            iniciarConexion(dot.dataset.procId);
+            return;
+        }
+
+        // Click en punto de conexion en modo seleccion — cambiar a modo conexion
+        if (dot) {
+            e.preventDefault();
+            e.stopPropagation();
+            setModo('conexion');
+            iniciarConexion(dot.dataset.procId);
+            return;
+        }
+
+        // Modo conexion, click en proceso = seleccionar destino
+        if (proc && APP.modo === 'conexion' && APP.connOrigen) {
+            e.preventDefault();
+            var destId = proc.dataset.id;
+            if (destId !== APP.connOrigen) {
+                finalizarConexion(destId);
+            }
+            return;
+        }
+
+        // Drag en modo seleccion
+        if (proc && APP.modo === 'seleccion') {
+            e.preventDefault();
+            var id = proc.dataset.id;
+            APP.seleccionId = id;
+            APP.isDragging = true;
+            APP.dragId = id;
+
+            var rect = proc.getBoundingClientRect();
+            APP.dragOffX = e.clientX - rect.left;
+            APP.dragOffY = e.clientY - rect.top;
+
+            proc.classList.add('dragging');
+            proc.setPointerCapture(e.pointerId);
+            renderProcesos();
+            var el = document.getElementById('proc_' + id);
+            if (el) { el.classList.add('dragging'); el.setPointerCapture(e.pointerId); }
+        }
+
+        // Click en vacio — deseleccionar
+        if (!proc && !dot) {
+            if (APP.modo === 'conexion' && APP.connOrigen) {
+                cancelarConexion();
+            }
+            APP.seleccionId = null;
+            cerrarPanel();
+            renderProcesos();
+        }
+    });
+
+    canvas.addEventListener('pointermove', function(e) {
+        // --- RESIZE MOVE ---
+        if (APP.isResizing && APP.resizeId) {
+            e.preventDefault();
+            var p = APP.procesos.find(function(pr) { return pr.id === APP.resizeId; });
+            if (!p) return;
+            var dx = e.clientX - APP.resizeStartX;
+            var dy = e.clientY - APP.resizeStartY;
+            var dir = APP.resizeDir;
+            var newW = APP.resizeStartW;
+            var newH = APP.resizeStartH;
+
+            if (dir === 'se' || dir === 'e') newW = Math.max(100, APP.resizeStartW + dx);
+            if (dir === 'se' || dir === 's') newH = Math.max(50, APP.resizeStartH + dy);
+            if (dir === 'e') newH = null; // solo ancho
+            if (dir === 's') newW = null; // solo alto
+
+            var el = document.getElementById('proc_' + APP.resizeId);
+            if (el) {
+                if (newW) { el.style.width = newW + 'px'; p.w = Math.round(newW); }
+                if (newH) { el.style.height = newH + 'px'; p.h = Math.round(newH); }
+            }
+            renderConexiones();
+            return;
+        }
+
+        // --- DRAG MOVE ---
+        if (APP.isDragging && APP.dragId) {
+            e.preventDefault();
+            var container = canvas.parentElement;
+            var containerRect = container.getBoundingClientRect();
+            var scrollLeft = container.scrollLeft;
+            var scrollTop = container.scrollTop;
+
+            var newX = e.clientX - containerRect.left + scrollLeft - APP.dragOffX;
+            var newY = e.clientY - containerRect.top + scrollTop - APP.dragOffY;
+
+            var p = APP.procesos.find(function(pr) { return pr.id === APP.dragId; });
+            if (p) {
+                var pw = p.w || 160;
+                var ph = p.h || 60;
+                newX = Math.max(0, Math.min(newX, canvas.offsetWidth - pw));
+                newY = Math.max(0, Math.min(newY, canvas.offsetHeight - ph));
+                p.x = Math.round(newX);
+                p.y = Math.round(newY);
+                var el = document.getElementById('proc_' + APP.dragId);
+                if (el) {
+                    el.style.left = p.x + 'px';
+                    el.style.top = p.y + 'px';
+                }
+                renderConexiones();
+            }
+        }
+
+        // Linea temporal de conexion
+        if (APP.modo === 'conexion' && APP.connOrigen && !APP.isDragging) {
+            var container = canvas.parentElement;
+            var containerRect = container.getBoundingClientRect();
+            var mx = e.clientX - containerRect.left + container.scrollLeft;
+            var my = e.clientY - containerRect.top + container.scrollTop;
+            dibujarConnTemp(mx, my);
+        }
+    });
+
+    canvas.addEventListener('pointerup', function(e) {
+        if (APP.isResizing) {
+            APP.isResizing = false;
+            APP.resizeId = null;
+            renderProcesos();
+        }
+        if (APP.isDragging) {
+            APP.isDragging = false;
+            var el = document.getElementById('proc_' + APP.dragId);
+            if (el) el.classList.remove('dragging');
+            APP.dragId = null;
+        }
+    });
+
+    // Doble click para editar
+    canvas.addEventListener('dblclick', function(e) {
+        var proc = e.target.closest('.proceso');
+        if (proc) {
+            APP.seleccionId = proc.dataset.id;
+            abrirPanel(proc.dataset.id);
+        }
+    });
+
+    // Context menu
+    canvas.addEventListener('contextmenu', function(e) {
+        var proc = e.target.closest('.proceso');
+        if (proc) {
+            e.preventDefault();
+            APP.seleccionId = proc.dataset.id;
+            renderProcesos();
+            mostrarContextMenu(e.clientX, e.clientY, proc.dataset.id);
+        }
+    });
+}
+
+// ===== CONEXIONES =====
+function iniciarConexion(procId) {
+    APP.connOrigen = procId;
+    // Marcar visualmente
+    var el = document.getElementById('proc_' + procId);
+    if (el) el.classList.add('conn-source');
+    actualizarInfo();
+}
+
+function dibujarConnTemp(mx, my) {
+    var svg = document.getElementById('svgOverlay');
+    // Eliminar temporal anterior
+    var old = svg.querySelector('.conn-temp');
+    if (old) old.remove();
+
+    var pO = APP.procesos.find(function(p) { return p.id === APP.connOrigen; });
+    if (!pO) return;
+
+    var x1 = pO.x + 80, y1 = pO.y + 30;
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', mx);
+    line.setAttribute('y2', my);
+    line.classList.add('conn-temp');
+    line.setAttribute('marker-end', 'url(#arrowTemp)');
+    svg.appendChild(line);
+}
+
+function finalizarConexion(destId) {
+    // Limpiar temporal
+    var svg = document.getElementById('svgOverlay');
+    var temp = svg.querySelector('.conn-temp');
+    if (temp) temp.remove();
+
+    // Verificar que no exista ya
+    var existe = APP.conexiones.some(function(c) {
+        return c.origen === APP.connOrigen && c.destino === destId;
+    });
+    if (existe) {
+        toast('Esa conexion ya existe', 'error');
+        cancelarConexion();
+        return;
+    }
+
+    // Guardar origen/destino temporal para el modal
+    APP._connPendiente = { origen: APP.connOrigen, destino: destId };
+
+    // Mostrar modal tipo
+    abrirModal('modalTipoConn');
+}
+
+function confirmarConexion(tipo) {
+    if (!APP._connPendiente) return;
+    APP.conexiones.push({
+        id: uuid(),
+        origen: APP._connPendiente.origen,
+        destino: APP._connPendiente.destino,
+        tipo: tipo
+    });
+    APP._connPendiente = null;
+    cerrarModal('modalTipoConn');
+
+    // Limpiar estado conexion
+    var el = document.getElementById('proc_' + APP.connOrigen);
+    if (el) el.classList.remove('conn-source');
+    APP.connOrigen = null;
+
+    renderConexiones();
+    actualizarInfo();
+}
+
+function cancelarConexion() {
+    APP._connPendiente = null;
+    cerrarModal('modalTipoConn');
+    var svg = document.getElementById('svgOverlay');
+    var temp = svg.querySelector('.conn-temp');
+    if (temp) temp.remove();
+
+    if (APP.connOrigen) {
+        var el = document.getElementById('proc_' + APP.connOrigen);
+        if (el) el.classList.remove('conn-source');
+    }
+    APP.connOrigen = null;
+    actualizarInfo();
+}
+
+// ===== PROCESOS CRUD =====
+function agregarProceso(capa) {
+    console.log('[MapaProcesos] agregarProceso:', capa, 'cliente:', APP.clienteActual, 'norma:', APP.normaActual);
+    if (!APP.clienteActual || !APP.normaActual) {
+        toast('Selecciona un cliente y una norma primero', 'error');
+        return;
+    }
+
+    // Posicion por defecto segun capa
+    var capas = { estrategico: { yMin: 40, yMax: 200 }, operativo: { yMin: 310, yMax: 490 }, apoyo: { yMin: 600, yMax: 760 } };
+    var rango = capas[capa];
+    var existentes = APP.procesos.filter(function(p) { return p.capa === capa; });
+    var x = 120 + existentes.length * 190;
+    var y = rango.yMin + 20;
+
+    var p = {
+        id: uuid(),
+        nombre: 'Nuevo proceso',
+        capa: capa,
+        x: x,
+        y: y,
+        w: 160,
+        h: null,
+        descripcion: '',
+        objetivo: '',
+        responsable: '',
+        recursos: '',
+        indicadores: ''
+    };
+    APP.procesos.push(p);
+    APP.seleccionId = p.id;
+    renderProcesos();
+    abrirPanel(p.id);
+    actualizarInfo();
+}
+
+function eliminarProceso(id) {
+    APP.procesos = APP.procesos.filter(function(p) { return p.id !== id; });
+    APP.conexiones = APP.conexiones.filter(function(c) { return c.origen !== id && c.destino !== id; });
+    if (APP.seleccionId === id) {
+        APP.seleccionId = null;
+        cerrarPanel();
+    }
+    renderTodo();
+    actualizarInfo();
+}
+
+function duplicarProceso(id) {
+    var orig = APP.procesos.find(function(p) { return p.id === id; });
+    if (!orig) return;
+    var copia = JSON.parse(JSON.stringify(orig));
+    copia.id = uuid();
+    copia.nombre = orig.nombre + ' (copia)';
+    copia.x = orig.x + 30;
+    copia.y = orig.y + 30;
+    APP.procesos.push(copia);
+    APP.seleccionId = copia.id;
+    renderProcesos();
+    actualizarInfo();
+}
+
+// ===== PANEL FICHA =====
+function abrirPanel(id) {
+    var p = APP.procesos.find(function(pr) { return pr.id === id; });
+    if (!p) return;
+
+    document.getElementById('fichaId').value = p.id;
+    document.getElementById('fichaNombre').value = p.nombre;
+    document.getElementById('fichaCapa').value = p.capa;
+    document.getElementById('fichaAncho').value = p.w || 160;
+    document.getElementById('fichaAlto').value = p.h || '';
+    document.getElementById('fichaDescripcion').value = p.descripcion || '';
+    document.getElementById('fichaObjetivo').value = p.objetivo || '';
+    document.getElementById('fichaResponsable').value = p.responsable || '';
+    document.getElementById('fichaRecursos').value = p.recursos || '';
+    document.getElementById('fichaIndicadores').value = p.indicadores || '';
+
+    document.getElementById('panelTitulo').textContent = 'Ficha: ' + p.nombre;
+    document.getElementById('panelFicha').classList.add('open');
+}
+
+function cerrarPanel() {
+    document.getElementById('panelFicha').classList.remove('open');
+}
+
+function guardarFicha() {
+    var id = document.getElementById('fichaId').value;
+    var p = APP.procesos.find(function(pr) { return pr.id === id; });
+    if (!p) return;
+
+    var nuevaCapa = document.getElementById('fichaCapa').value;
+    var capaCambio = (nuevaCapa !== p.capa);
+
+    p.nombre = document.getElementById('fichaNombre').value.trim() || 'Sin nombre';
+    p.capa = nuevaCapa;
+    var anchoVal = parseInt(document.getElementById('fichaAncho').value);
+    var altoVal = parseInt(document.getElementById('fichaAlto').value);
+    p.w = (anchoVal && anchoVal >= 100) ? anchoVal : 160;
+    p.h = (altoVal && altoVal >= 50) ? altoVal : null;
+    p.descripcion = document.getElementById('fichaDescripcion').value.trim();
+    p.objetivo = document.getElementById('fichaObjetivo').value.trim();
+    p.responsable = document.getElementById('fichaResponsable').value.trim();
+    p.recursos = document.getElementById('fichaRecursos').value.trim();
+    p.indicadores = document.getElementById('fichaIndicadores').value.trim();
+
+    // Si cambio de capa, reposicionar Y
+    if (capaCambio) {
+        var capas = { estrategico: 60, operativo: 330, apoyo: 620 };
+        p.y = capas[p.capa] || p.y;
+    }
+
+    document.getElementById('panelTitulo').textContent = 'Ficha: ' + p.nombre;
+    renderTodo();
+    toast('Ficha actualizada', 'success');
+}
+
+// ===== MODALES =====
+function abrirModal(id) { document.getElementById(id).classList.add('open'); }
+function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ===== CONTEXT MENU =====
+function mostrarContextMenu(x, y, procId) {
+    var menu = document.getElementById('contextMenu');
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.classList.add('open');
+    menu.dataset.procId = procId;
+}
+
+function cerrarContextMenu() {
+    document.getElementById('contextMenu').classList.remove('open');
+}
+
+// ===== MODO =====
+function setModo(modo) {
+    APP.modo = modo;
+    document.getElementById('btnModoSeleccion').classList.toggle('active', modo === 'seleccion');
+    document.getElementById('btnModoConexion').classList.toggle('active', modo === 'conexion');
+    document.getElementById('canvas').style.cursor = modo === 'conexion' ? 'crosshair' : 'default';
+    if (modo === 'seleccion' && APP.connOrigen) {
+        cancelarConexion();
+    }
+    actualizarInfo();
+}
+
+// ===== INFO TOOLBAR =====
+function actualizarInfo() {
+    var info = document.getElementById('toolbarInfo');
+    if (!APP.clienteActual && !APP.normaActual) {
+        info.textContent = 'Selecciona un cliente y una norma para empezar';
+        return;
+    }
+    if (!APP.clienteActual) {
+        info.textContent = 'Falta seleccionar CLIENTE';
+        return;
+    }
+    if (!APP.normaActual) {
+        info.textContent = 'Falta seleccionar NORMA';
+        return;
+    }
+    var np = APP.procesos.length;
+    var nc = APP.conexiones.length;
+    var txt = np + ' proceso' + (np !== 1 ? 's' : '') + ' | ' + nc + ' conexion' + (nc !== 1 ? 'es' : '');
+    if (APP.modo === 'conexion') {
+        if (APP.connOrigen) {
+            txt += ' | Click en proceso destino para conectar';
+        } else {
+            txt += ' | Click en un proceso para iniciar conexion';
+        }
+    }
+    info.textContent = txt;
+}
+
+// ===== EXPORTAR / IMPORTAR JSON =====
+function exportarJSON() {
+    if (!APP.clienteActual || !APP.normaActual) {
+        toast('Selecciona un cliente y una norma', 'error');
+        return;
+    }
+    var datos = {
+        clienteId: APP.clienteActual,
+        normaId: APP.normaActual,
+        procesos: APP.procesos,
+        conexiones: APP.conexiones,
+        exportadoEn: new Date().toISOString(),
+        version: '1.0'
+    };
+    var blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'mapa_' + APP.clienteActual + '_' + APP.normaActual + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('JSON exportado', 'success');
+}
+
+function importarJSON() {
+    document.getElementById('fileImport').click();
+}
+
+function procesarImport(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            var datos = JSON.parse(e.target.result);
+            if (!datos.procesos || !Array.isArray(datos.procesos)) {
+                toast('Archivo JSON invalido: falta "procesos"', 'error');
+                return;
+            }
+            APP.procesos = datos.procesos;
+            APP.conexiones = datos.conexiones || [];
+            renderTodo();
+            actualizarInfo();
+            toast('Mapa importado (' + APP.procesos.length + ' procesos)', 'success');
+        } catch (err) {
+            toast('Error al leer JSON: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ===== EXPORTAR PDF =====
+function exportarPDF() {
+    if (!APP.clienteActual || !APP.normaActual) {
+        toast('Selecciona un cliente y una norma', 'error');
+        return;
+    }
+    if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+        toast('Librerias PDF no cargadas. Verifica conexion a internet.', 'error');
+        return;
+    }
+    toast('Generando PDF...', 'info');
+    var canvas = document.getElementById('canvas');
+
+    // Ocultar conn-dots para captura
+    canvas.querySelectorAll('.conn-dot').forEach(function(d) { d.style.display = 'none'; });
+
+    html2canvas(canvas, {
+        scale: 2,
+        backgroundColor: '#f8f9fa',
+        useCORS: true,
+        logging: false
+    }).then(function(canvasImg) {
+        canvas.querySelectorAll('.conn-dot').forEach(function(d) { d.style.display = ''; });
+
+        var jsPDF = window.jspdf.jsPDF;
+        var pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
+
+        var imgData = canvasImg.toDataURL('image/png');
+        var pageW = pdf.internal.pageSize.getWidth();
+        var pageH = pdf.internal.pageSize.getHeight();
+        var ratio = Math.min(pageW / canvasImg.width, pageH / canvasImg.height) * 0.9;
+        var imgW = canvasImg.width * ratio;
+        var imgH = canvasImg.height * ratio;
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        pdf.text('Mapa de Procesos — CODANOR', 15, 15);
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('Norma: ' + APP.normaActual + ' | Fecha: ' + new Date().toLocaleDateString('es-ES'), 15, 22);
+
+        pdf.addImage(imgData, 'PNG', (pageW - imgW) / 2, 28, imgW, imgH);
+
+        pdf.save('mapa_procesos_' + APP.normaActual + '.pdf');
+        toast('PDF exportado', 'success');
+    }).catch(function(err) {
+        canvas.querySelectorAll('.conn-dot').forEach(function(d) { d.style.display = ''; });
+        toast('Error al generar PDF', 'error');
+    });
+}
+
+// ===== PLANTILLAS =====
+var PLANTILLAS = {
+    ISO9001: {
+        procesos: [
+            { nombre: 'Planificacion del SGC', capa: 'estrategico', x: 120, y: 60, descripcion: 'Definicion de la politica de calidad, objetivos y planificacion del sistema de gestion', objetivo: 'Establecer la direccion estrategica del SGC', responsable: 'Alta Direccion', recursos: 'Equipo directivo, documentacion normativa', indicadores: 'Cumplimiento de objetivos de calidad' },
+            { nombre: 'Revision por la Direccion', capa: 'estrategico', x: 400, y: 60, descripcion: 'Revision periodica del SGC para asegurar su conveniencia, adecuacion y eficacia', objetivo: 'Evaluar el desempeno del SGC y determinar mejoras', responsable: 'Director General', recursos: 'Informes de auditoria, indicadores, datos de satisfaccion', indicadores: 'N. de revisiones realizadas, acciones de mejora generadas' },
+            { nombre: 'Mejora Continua', capa: 'estrategico', x: 680, y: 60, descripcion: 'Gestion de no conformidades, acciones correctivas y oportunidades de mejora', objetivo: 'Mejorar continuamente la idoneidad del SGC', responsable: 'Responsable de Calidad', recursos: 'Herramientas de analisis, base de datos NC', indicadores: 'N. de NC cerradas, tiempo medio de resolucion' },
+            { nombre: 'Gestion Comercial', capa: 'operativo', x: 120, y: 330, descripcion: 'Captacion de clientes, elaboracion de ofertas y gestion de contratos', objetivo: 'Satisfacer las necesidades y expectativas del cliente', responsable: 'Director Comercial', recursos: 'CRM, equipo comercial', indicadores: 'Tasa de conversion, satisfaccion del cliente' },
+            { nombre: 'Diseno y Desarrollo', capa: 'operativo', x: 400, y: 330, descripcion: 'Diseno de productos o servicios segun requisitos del cliente', objetivo: 'Transformar requisitos en especificaciones realizables', responsable: 'Responsable Tecnico', recursos: 'Equipo tecnico, herramientas de diseno', indicadores: 'Tiempo de diseno, n. de revisiones de diseno' },
+            { nombre: 'Produccion / Prestacion', capa: 'operativo', x: 680, y: 330, descripcion: 'Ejecucion del servicio o fabricacion del producto', objetivo: 'Entregar el producto/servicio conforme a especificaciones', responsable: 'Director de Operaciones', recursos: 'Personal, equipos, materiales', indicadores: 'Indice de conformidad, productividad' },
+            { nombre: 'Entrega y Postventa', capa: 'operativo', x: 960, y: 330, descripcion: 'Entrega al cliente y seguimiento postventa', objetivo: 'Asegurar la satisfaccion del cliente tras la entrega', responsable: 'Director Comercial', recursos: 'Logistica, servicio atencion al cliente', indicadores: 'Satisfaccion postventa, n. de reclamaciones' },
+            { nombre: 'Gestion de RRHH', capa: 'apoyo', x: 120, y: 620, descripcion: 'Seleccion, formacion y evaluacion del personal', objetivo: 'Asegurar la competencia del personal', responsable: 'Responsable de RRHH', recursos: 'Planes de formacion, evaluaciones', indicadores: 'Horas de formacion, rotacion de personal' },
+            { nombre: 'Compras y Proveedores', capa: 'apoyo', x: 400, y: 620, descripcion: 'Gestion de compras y evaluacion de proveedores', objetivo: 'Asegurar que los productos/servicios comprados cumplen requisitos', responsable: 'Responsable de Compras', recursos: 'Base de datos proveedores, criterios de evaluacion', indicadores: 'N. de proveedores evaluados, incidencias con proveedores' },
+            { nombre: 'Gestion Documental', capa: 'apoyo', x: 680, y: 620, descripcion: 'Control de la documentacion del SGC', objetivo: 'Mantener documentacion actualizada y accesible', responsable: 'Responsable de Calidad', recursos: 'Sistema de gestion documental', indicadores: 'Documentos vigentes vs obsoletos' },
+            { nombre: 'Auditorias Internas', capa: 'apoyo', x: 960, y: 620, descripcion: 'Planificacion y ejecucion de auditorias internas del SGC', objetivo: 'Verificar la conformidad y eficacia del SGC', responsable: 'Auditor Interno', recursos: 'Plan de auditorias, checklist', indicadores: 'N. de auditorias realizadas, hallazgos detectados' }
+        ],
+        conexiones: [
+            { origen: 0, destino: 1, tipo: 'flujo' },
+            { origen: 1, destino: 2, tipo: 'flujo' },
+            { origen: 3, destino: 4, tipo: 'flujo' },
+            { origen: 4, destino: 5, tipo: 'flujo' },
+            { origen: 5, destino: 6, tipo: 'flujo' },
+            { origen: 0, destino: 3, tipo: 'dependencia' },
+            { origen: 2, destino: 10, tipo: 'informacion' },
+            { origen: 7, destino: 5, tipo: 'dependencia' },
+            { origen: 8, destino: 5, tipo: 'dependencia' }
+        ]
+    },
+    ISO14001: {
+        procesos: [
+            { nombre: 'Politica Ambiental', capa: 'estrategico', x: 120, y: 60, descripcion: 'Definicion del compromiso ambiental de la organizacion', objetivo: 'Establecer marco para objetivos ambientales', responsable: 'Alta Direccion', recursos: 'Equipo directivo', indicadores: 'Revision anual de la politica' },
+            { nombre: 'Planificacion SGA', capa: 'estrategico', x: 400, y: 60, descripcion: 'Identificacion de aspectos ambientales, riesgos y objetivos', objetivo: 'Planificar acciones para abordar riesgos y oportunidades ambientales', responsable: 'Responsable Ambiental', recursos: 'Evaluacion de aspectos, legislacion aplicable', indicadores: 'N. de objetivos definidos y alcanzados' },
+            { nombre: 'Revision por Direccion', capa: 'estrategico', x: 680, y: 60, descripcion: 'Revision del SGA para asegurar eficacia y mejora', objetivo: 'Evaluar desempeno ambiental y decidir mejoras', responsable: 'Director General', recursos: 'Informes ambientales, indicadores', indicadores: 'Acciones de mejora derivadas' },
+            { nombre: 'Aspectos Ambientales', capa: 'operativo', x: 120, y: 330, descripcion: 'Identificacion y evaluacion de aspectos ambientales significativos', objetivo: 'Determinar impactos ambientales para su control', responsable: 'Responsable Ambiental', recursos: 'Matriz de aspectos, datos operacionales', indicadores: 'N. de aspectos significativos identificados' },
+            { nombre: 'Control Operacional', capa: 'operativo', x: 400, y: 330, descripcion: 'Control de operaciones asociadas a aspectos ambientales significativos', objetivo: 'Minimizar impactos ambientales negativos', responsable: 'Responsable de Operaciones', recursos: 'Procedimientos operativos, equipos de control', indicadores: 'Emisiones, residuos generados, consumos' },
+            { nombre: 'Preparacion Emergencias', capa: 'operativo', x: 680, y: 330, descripcion: 'Planes de emergencia ambiental y simulacros', objetivo: 'Estar preparados para responder a emergencias ambientales', responsable: 'Responsable Ambiental', recursos: 'Planes de emergencia, equipos, formacion', indicadores: 'N. de simulacros realizados, tiempo de respuesta' },
+            { nombre: 'Requisitos Legales', capa: 'operativo', x: 960, y: 330, descripcion: 'Identificacion y cumplimiento de legislacion ambiental aplicable', objetivo: 'Asegurar conformidad legal ambiental', responsable: 'Asesor Juridico / Resp. Ambiental', recursos: 'Base de datos legislativa, suscripciones', indicadores: 'Grado de cumplimiento legal' },
+            { nombre: 'Formacion Ambiental', capa: 'apoyo', x: 120, y: 620, descripcion: 'Formacion y sensibilizacion ambiental del personal', objetivo: 'Asegurar competencia ambiental del personal', responsable: 'Responsable RRHH', recursos: 'Planes de formacion, materiales didacticos', indicadores: 'Horas de formacion ambiental, n. de asistentes' },
+            { nombre: 'Comunicacion', capa: 'apoyo', x: 400, y: 620, descripcion: 'Comunicacion interna y externa sobre desempeno ambiental', objetivo: 'Informar a partes interesadas sobre gestion ambiental', responsable: 'Responsable Ambiental', recursos: 'Canales de comunicacion', indicadores: 'N. de comunicaciones realizadas' },
+            { nombre: 'Seguimiento y Medicion', capa: 'apoyo', x: 680, y: 620, descripcion: 'Monitorizacion del desempeno ambiental', objetivo: 'Medir y evaluar el desempeno del SGA', responsable: 'Responsable Ambiental', recursos: 'Instrumentos de medicion, laboratorio', indicadores: 'Tendencia de indicadores ambientales' },
+            { nombre: 'Auditoria Interna', capa: 'apoyo', x: 960, y: 620, descripcion: 'Auditorias internas del SGA', objetivo: 'Verificar conformidad y eficacia del SGA', responsable: 'Auditor Interno', recursos: 'Plan de auditorias, checklist ISO 14001', indicadores: 'N. de no conformidades detectadas' }
+        ],
+        conexiones: [
+            { origen: 0, destino: 1, tipo: 'flujo' },
+            { origen: 1, destino: 2, tipo: 'flujo' },
+            { origen: 1, destino: 3, tipo: 'dependencia' },
+            { origen: 3, destino: 4, tipo: 'flujo' },
+            { origen: 4, destino: 5, tipo: 'informacion' },
+            { origen: 6, destino: 4, tipo: 'dependencia' },
+            { origen: 9, destino: 2, tipo: 'informacion' },
+            { origen: 7, destino: 4, tipo: 'dependencia' }
+        ]
+    },
+    ISO27001: {
+        procesos: [
+            { nombre: 'Politica de Seguridad', capa: 'estrategico', x: 120, y: 60, descripcion: 'Definicion de la politica de seguridad de la informacion', objetivo: 'Establecer el marco de referencia del SGSI', responsable: 'Alta Direccion', recursos: 'Comite de seguridad', indicadores: 'Revision anual de politica' },
+            { nombre: 'Gestion de Riesgos', capa: 'estrategico', x: 400, y: 60, descripcion: 'Evaluacion y tratamiento de riesgos de seguridad de la informacion', objetivo: 'Identificar, analizar y tratar los riesgos', responsable: 'CISO / Resp. Seguridad', recursos: 'Metodologia de riesgos, herramientas', indicadores: 'N. de riesgos identificados, nivel de riesgo residual' },
+            { nombre: 'Revision por Direccion', capa: 'estrategico', x: 680, y: 60, descripcion: 'Revision periodica del SGSI', objetivo: 'Evaluar eficacia del SGSI y tomar decisiones de mejora', responsable: 'Director General', recursos: 'Informes de seguridad, metricas', indicadores: 'Acciones correctivas generadas' },
+            { nombre: 'Control de Acceso', capa: 'operativo', x: 120, y: 330, descripcion: 'Gestion de identidades, autenticacion y autorizacion', objetivo: 'Limitar el acceso a la informacion segun necesidad', responsable: 'Responsable TI', recursos: 'IAM, Active Directory, politicas', indicadores: 'N. de accesos no autorizados, revisiones de permisos' },
+            { nombre: 'Gestion de Incidentes', capa: 'operativo', x: 400, y: 330, descripcion: 'Deteccion, respuesta y recuperacion de incidentes de seguridad', objetivo: 'Minimizar el impacto de incidentes de seguridad', responsable: 'CISO', recursos: 'SIEM, equipo de respuesta', indicadores: 'Tiempo medio de deteccion y respuesta' },
+            { nombre: 'Continuidad de Negocio', capa: 'operativo', x: 680, y: 330, descripcion: 'Planes de continuidad y recuperacion ante desastres', objetivo: 'Asegurar la disponibilidad de servicios criticos', responsable: 'Director de Operaciones', recursos: 'BCP, DRP, infraestructura redundante', indicadores: 'RTO/RPO alcanzados en pruebas' },
+            { nombre: 'Gestion de Activos', capa: 'operativo', x: 960, y: 330, descripcion: 'Inventario y clasificacion de activos de informacion', objetivo: 'Proteger adecuadamente los activos segun su clasificacion', responsable: 'Responsable TI', recursos: 'Inventario de activos, herramientas CMDB', indicadores: 'Activos inventariados vs total' },
+            { nombre: 'Formacion y Concienciacion', capa: 'apoyo', x: 120, y: 620, descripcion: 'Programas de formacion y sensibilizacion en seguridad', objetivo: 'Reducir el factor humano como vector de riesgo', responsable: 'RRHH + CISO', recursos: 'Plataforma e-learning, campanas phishing', indicadores: 'Tasa de click en phishing simulado' },
+            { nombre: 'Gestion de Proveedores', capa: 'apoyo', x: 400, y: 620, descripcion: 'Evaluacion de seguridad de proveedores y terceros', objetivo: 'Asegurar que terceros cumplen requisitos de seguridad', responsable: 'Compras + CISO', recursos: 'Cuestionarios de seguridad, contratos', indicadores: 'N. de proveedores evaluados' },
+            { nombre: 'Auditoria Interna', capa: 'apoyo', x: 680, y: 620, descripcion: 'Auditorias del SGSI y controles del Anexo A', objetivo: 'Verificar conformidad y eficacia del SGSI', responsable: 'Auditor Interno', recursos: 'Plan de auditorias, ISO 27001 checklist', indicadores: 'N. de hallazgos, estado de controles' },
+            { nombre: 'Cumplimiento Legal', capa: 'apoyo', x: 960, y: 620, descripcion: 'Identificacion y cumplimiento de requisitos legales (RGPD, etc.)', objetivo: 'Asegurar conformidad normativa y legal', responsable: 'DPO / Asesor Juridico', recursos: 'Registro de legislacion aplicable', indicadores: 'Grado de cumplimiento' }
+        ],
+        conexiones: [
+            { origen: 0, destino: 1, tipo: 'flujo' },
+            { origen: 1, destino: 2, tipo: 'flujo' },
+            { origen: 1, destino: 3, tipo: 'dependencia' },
+            { origen: 1, destino: 6, tipo: 'dependencia' },
+            { origen: 4, destino: 5, tipo: 'informacion' },
+            { origen: 3, destino: 4, tipo: 'flujo' },
+            { origen: 7, destino: 3, tipo: 'dependencia' },
+            { origen: 9, destino: 2, tipo: 'informacion' }
+        ]
+    },
+    ISO45001: {
+        procesos: [
+            { nombre: 'Politica SST', capa: 'estrategico', x: 120, y: 60, descripcion: 'Definicion de la politica de seguridad y salud en el trabajo', objetivo: 'Establecer compromiso con la prevencion de lesiones y enfermedades', responsable: 'Alta Direccion', recursos: 'Comite SST, consultores', indicadores: 'Revision anual de politica SST' },
+            { nombre: 'Planificacion SST', capa: 'estrategico', x: 400, y: 60, descripcion: 'Identificacion de peligros, evaluacion de riesgos y oportunidades', objetivo: 'Planificar acciones preventivas y de mejora', responsable: 'Responsable de Prevencion', recursos: 'Evaluaciones de riesgos, legislacion SST', indicadores: 'N. de riesgos evaluados y tratados' },
+            { nombre: 'Revision por Direccion', capa: 'estrategico', x: 680, y: 60, descripcion: 'Revision del SGSST para asegurar su eficacia', objetivo: 'Evaluar desempeno SST y decidir acciones', responsable: 'Director General', recursos: 'Informes SST, estadisticas', indicadores: 'Acciones de mejora derivadas' },
+            { nombre: 'Evaluacion de Riesgos', capa: 'operativo', x: 120, y: 330, descripcion: 'Identificacion de peligros y evaluacion de riesgos laborales', objetivo: 'Determinar medidas preventivas adecuadas', responsable: 'Tecnico de Prevencion', recursos: 'Metodologias de evaluacion, mediciones', indicadores: 'N. de evaluaciones realizadas, riesgos residuales' },
+            { nombre: 'Control Operacional', capa: 'operativo', x: 400, y: 330, descripcion: 'Controles para gestionar riesgos SST en las operaciones', objetivo: 'Eliminar peligros y reducir riesgos SST', responsable: 'Responsable de Operaciones', recursos: 'EPIs, procedimientos de trabajo seguro', indicadores: 'Incidentes, tasa de frecuencia y gravedad' },
+            { nombre: 'Investigacion Incidentes', capa: 'operativo', x: 680, y: 330, descripcion: 'Investigacion de accidentes, incidentes y casi-accidentes', objetivo: 'Determinar causas raiz y prevenir recurrencia', responsable: 'Tecnico de Prevencion', recursos: 'Metodologias de investigacion, equipo', indicadores: 'N. de investigaciones, acciones correctivas implementadas' },
+            { nombre: 'Preparacion Emergencias', capa: 'operativo', x: 960, y: 330, descripcion: 'Planes de emergencia, evacuacion y primeros auxilios', objetivo: 'Preparar respuesta ante emergencias laborales', responsable: 'Responsable de Prevencion', recursos: 'Planes emergencia, simulacros, equipos', indicadores: 'N. de simulacros, tiempo de evacuacion' },
+            { nombre: 'Formacion Prevencion', capa: 'apoyo', x: 120, y: 620, descripcion: 'Formacion en seguridad y salud laboral', objetivo: 'Asegurar competencia del personal en prevencion', responsable: 'RRHH + Prevencion', recursos: 'Planes formativos, materiales', indicadores: 'Horas de formacion SST por empleado' },
+            { nombre: 'Consulta y Participacion', capa: 'apoyo', x: 400, y: 620, descripcion: 'Participacion de los trabajadores en la gestion SST', objetivo: 'Involucrar a los trabajadores en decisiones SST', responsable: 'Comite SST', recursos: 'Reuniones, buzones sugerencias', indicadores: 'N. de propuestas de trabajadores implementadas' },
+            { nombre: 'Vigilancia de la Salud', capa: 'apoyo', x: 680, y: 620, descripcion: 'Reconocimientos medicos y vigilancia de la salud', objetivo: 'Detectar precozmente efectos en la salud', responsable: 'Servicio de Prevencion Ajeno', recursos: 'Protocolos medicos, servicio medico', indicadores: 'N. de reconocimientos realizados, aptitudes' },
+            { nombre: 'Auditoria Interna', capa: 'apoyo', x: 960, y: 620, descripcion: 'Auditorias internas del SGSST', objetivo: 'Verificar conformidad y eficacia del sistema', responsable: 'Auditor Interno', recursos: 'Plan de auditorias, checklist ISO 45001', indicadores: 'N. de hallazgos, conformidad general' }
+        ],
+        conexiones: [
+            { origen: 0, destino: 1, tipo: 'flujo' },
+            { origen: 1, destino: 2, tipo: 'flujo' },
+            { origen: 1, destino: 3, tipo: 'dependencia' },
+            { origen: 3, destino: 4, tipo: 'flujo' },
+            { origen: 4, destino: 5, tipo: 'informacion' },
+            { origen: 5, destino: 6, tipo: 'informacion' },
+            { origen: 7, destino: 4, tipo: 'dependencia' },
+            { origen: 10, destino: 2, tipo: 'informacion' }
+        ]
+    },
+    ISO22301: {
+        procesos: [
+            { nombre: 'Politica de Continuidad', capa: 'estrategico', x: 120, y: 60, descripcion: 'Definicion de la politica de continuidad de negocio', objetivo: 'Establecer el compromiso con la continuidad', responsable: 'Alta Direccion', recursos: 'Comite de crisis', indicadores: 'Revision anual de la politica' },
+            { nombre: 'Liderazgo y Compromiso', capa: 'estrategico', x: 400, y: 60, descripcion: 'Liderazgo de la direccion en el SGCN', objetivo: 'Asegurar recursos y compromiso organizacional', responsable: 'Director General', recursos: 'Presupuesto, comite de continuidad', indicadores: 'Recursos asignados vs necesarios' },
+            { nombre: 'Revision por Direccion', capa: 'estrategico', x: 680, y: 60, descripcion: 'Revision periodica del SGCN', objetivo: 'Evaluar eficacia del sistema y decidir mejoras', responsable: 'Director General', recursos: 'Informes, resultados de ejercicios', indicadores: 'Acciones de mejora generadas' },
+            { nombre: 'Analisis Impacto (BIA)', capa: 'operativo', x: 120, y: 330, descripcion: 'Analisis del impacto en el negocio ante interrupciones', objetivo: 'Identificar actividades criticas y sus requisitos de recuperacion', responsable: 'Responsable de Continuidad', recursos: 'Metodologia BIA, datos operacionales', indicadores: 'N. de actividades criticas identificadas, MTPD definido' },
+            { nombre: 'Evaluacion de Riesgos', capa: 'operativo', x: 400, y: 330, descripcion: 'Evaluacion de riesgos que pueden causar interrupciones', objetivo: 'Identificar amenazas y vulnerabilidades', responsable: 'Responsable de Continuidad', recursos: 'Metodologia de riesgos', indicadores: 'N. de escenarios de riesgo evaluados' },
+            { nombre: 'Estrategias de Continuidad', capa: 'operativo', x: 680, y: 330, descripcion: 'Definicion de estrategias para mantener actividades criticas', objetivo: 'Definir opciones de recuperacion viables', responsable: 'Responsable de Continuidad', recursos: 'Alternativas tecnicas, sitios alternativos', indicadores: 'RTO y RPO definidos y factibles' },
+            { nombre: 'Planes de Continuidad', capa: 'operativo', x: 960, y: 330, descripcion: 'Desarrollo de planes de continuidad de negocio (BCP)', objetivo: 'Documentar procedimientos de respuesta y recuperacion', responsable: 'Responsable de Continuidad', recursos: 'Plantillas BCP, contactos criticos', indicadores: 'N. de planes documentados y actualizados' },
+            { nombre: 'Ejercicios y Pruebas', capa: 'apoyo', x: 120, y: 620, descripcion: 'Realizacion de simulacros y pruebas de los planes', objetivo: 'Validar eficacia de los planes de continuidad', responsable: 'Responsable de Continuidad', recursos: 'Escenarios de prueba, coordinacion', indicadores: 'N. de ejercicios realizados, lecciones aprendidas' },
+            { nombre: 'Comunicacion de Crisis', capa: 'apoyo', x: 400, y: 620, descripcion: 'Gestion de la comunicacion durante incidentes', objetivo: 'Comunicar eficazmente a todas las partes interesadas', responsable: 'Responsable de Comunicacion', recursos: 'Protocolos de comunicacion, canales', indicadores: 'Tiempo de activacion de comunicacion' },
+            { nombre: 'Formacion y Concienciacion', capa: 'apoyo', x: 680, y: 620, descripcion: 'Formacion del personal en continuidad de negocio', objetivo: 'Asegurar que el personal conoce sus roles en emergencias', responsable: 'RRHH + Continuidad', recursos: 'Materiales formativos', indicadores: 'Personal formado vs total' },
+            { nombre: 'Auditoria Interna', capa: 'apoyo', x: 960, y: 620, descripcion: 'Auditorias internas del SGCN', objetivo: 'Verificar conformidad del SGCN', responsable: 'Auditor Interno', recursos: 'Plan de auditorias, checklist 22301', indicadores: 'N. de hallazgos, estado de planes' }
+        ],
+        conexiones: [
+            { origen: 0, destino: 1, tipo: 'flujo' },
+            { origen: 1, destino: 2, tipo: 'flujo' },
+            { origen: 3, destino: 4, tipo: 'flujo' },
+            { origen: 4, destino: 5, tipo: 'flujo' },
+            { origen: 5, destino: 6, tipo: 'flujo' },
+            { origen: 6, destino: 7, tipo: 'dependencia' },
+            { origen: 0, destino: 3, tipo: 'dependencia' },
+            { origen: 7, destino: 2, tipo: 'informacion' }
+        ]
+    },
+    ENS: {
+        procesos: [
+            { nombre: 'Politica de Seguridad', capa: 'estrategico', x: 120, y: 60, descripcion: 'Politica de seguridad de la informacion conforme al ENS', objetivo: 'Definir el marco normativo de seguridad', responsable: 'Organo Superior / Comite', recursos: 'Marco legal (RD 311/2022)', indicadores: 'Aprobacion y revision de la politica' },
+            { nombre: 'Categorizacion Sistemas', capa: 'estrategico', x: 400, y: 60, descripcion: 'Categorizacion de los sistemas de informacion (BASICA/MEDIA/ALTA)', objetivo: 'Determinar las medidas de seguridad aplicables', responsable: 'Responsable del Sistema', recursos: 'Guias CCN, inventario de sistemas', indicadores: 'Sistemas categorizados / total' },
+            { nombre: 'Declaracion Aplicabilidad', capa: 'estrategico', x: 680, y: 60, descripcion: 'Documento de aplicabilidad de medidas del Anexo II', objetivo: 'Definir que medidas aplican segun categoria', responsable: 'Responsable de Seguridad', recursos: 'Anexo II del ENS, analisis de riesgos', indicadores: 'Medidas aplicables definidas' },
+            { nombre: 'Marco Organizativo', capa: 'operativo', x: 120, y: 330, descripcion: 'Politica de seguridad, normativa, procedimientos y roles', objetivo: 'Establecer estructura organizativa de seguridad', responsable: 'Responsable de Seguridad', recursos: 'Documentacion, organigramas', indicadores: 'Roles definidos y asignados' },
+            { nombre: 'Marco Operacional', capa: 'operativo', x: 400, y: 330, descripcion: 'Planificacion, control de acceso, explotacion, servicios externos, continuidad', objetivo: 'Implementar medidas operativas de seguridad', responsable: 'Responsable de Operaciones TI', recursos: 'Herramientas tecnicas, procedimientos', indicadores: 'Medidas operacionales implementadas vs requeridas' },
+            { nombre: 'Medidas de Proteccion', capa: 'operativo', x: 680, y: 330, descripcion: 'Proteccion de instalaciones, personal, equipos, comunicaciones, soportes e informacion', objetivo: 'Proteger los activos conforme al ENS', responsable: 'Responsable de Seguridad', recursos: 'Controles tecnicos, cifrado, seguridad fisica', indicadores: 'Controles implementados / requeridos' },
+            { nombre: 'Gestion de Incidentes', capa: 'operativo', x: 960, y: 330, descripcion: 'Deteccion, notificacion y respuesta a incidentes (CCN-CERT)', objetivo: 'Gestionar incidentes conforme a requisitos ENS', responsable: 'Equipo de Respuesta', recursos: 'SIEM, CCN-CERT LUCIA, procedimientos', indicadores: 'Tiempo de notificacion a CCN-CERT' },
+            { nombre: 'Formacion y Concienciacion', capa: 'apoyo', x: 120, y: 620, descripcion: 'Formacion del personal en seguridad ENS', objetivo: 'Cumplir requisito de concienciacion del ENS', responsable: 'RRHH + Resp. Seguridad', recursos: 'CCN-CERT materiales, plataformas', indicadores: 'Personal formado, campanas realizadas' },
+            { nombre: 'Auditoria y Conformidad', capa: 'apoyo', x: 400, y: 620, descripcion: 'Auditorias bienales (MEDIA/ALTA) o autoevaluacion (BASICA)', objetivo: 'Demostrar conformidad con el ENS', responsable: 'Auditor / Resp. Seguridad', recursos: 'Guias CCN-STIC, herramientas INES', indicadores: 'Resultado de auditoria, nivel de conformidad' },
+            { nombre: 'Monitorizacion Continua', capa: 'apoyo', x: 680, y: 620, descripcion: 'Vigilancia continua de la seguridad de los sistemas', objetivo: 'Detectar anomalias y mantener la seguridad', responsable: 'Responsable de Operaciones TI', recursos: 'SIEM, herramientas CCN (CLARA, PILAR)', indicadores: 'Alertas gestionadas, vulnerabilidades parcheadas' },
+            { nombre: 'Mejora Continua', capa: 'apoyo', x: 960, y: 620, descripcion: 'Plan de adecuacion y mejora continua del ENS', objetivo: 'Mejorar el nivel de conformidad progresivamente', responsable: 'Responsable de Seguridad', recursos: 'Plan de adecuacion, hoja de ruta', indicadores: 'Porcentaje de implementacion del plan' }
+        ],
+        conexiones: [
+            { origen: 0, destino: 1, tipo: 'flujo' },
+            { origen: 1, destino: 2, tipo: 'flujo' },
+            { origen: 2, destino: 3, tipo: 'dependencia' },
+            { origen: 3, destino: 4, tipo: 'flujo' },
+            { origen: 4, destino: 5, tipo: 'flujo' },
+            { origen: 5, destino: 6, tipo: 'informacion' },
+            { origen: 8, destino: 2, tipo: 'informacion' },
+            { origen: 7, destino: 4, tipo: 'dependencia' },
+            { origen: 9, destino: 6, tipo: 'dependencia' }
+        ]
+    }
+};
+
+function cargarPlantilla() {
+    if (!APP.normaActual) {
+        toast('Selecciona una norma primero', 'error');
+        return;
+    }
+    if (!APP.clienteActual) {
+        toast('Selecciona un cliente primero', 'error');
+        return;
+    }
+    var plantilla = PLANTILLAS[APP.normaActual];
+    if (!plantilla) {
+        toast('No hay plantilla para esta norma', 'error');
+        return;
+    }
+
+    // Crear procesos con IDs unicos
+    var idMap = {};
+    APP.procesos = plantilla.procesos.map(function(p, i) {
+        var id = uuid();
+        idMap[i] = id;
+        return {
+            id: id,
+            nombre: p.nombre,
+            capa: p.capa,
+            x: p.x,
+            y: p.y,
+            descripcion: p.descripcion || '',
+            objetivo: p.objetivo || '',
+            responsable: p.responsable || '',
+            recursos: p.recursos || '',
+            indicadores: p.indicadores || ''
+        };
+    });
+
+    APP.conexiones = plantilla.conexiones.map(function(c) {
+        return {
+            id: uuid(),
+            origen: idMap[c.origen],
+            destino: idMap[c.destino],
+            tipo: c.tipo
+        };
+    });
+
+    renderTodo();
+    actualizarInfo();
+    cerrarModal('modalPlantilla');
+    toast('Plantilla ' + APP.normaActual + ' cargada (' + APP.procesos.length + ' procesos)', 'success');
+}
+
+// ===== ELIMINAR SELECCIONADO =====
+function eliminarSeleccionado() {
+    if (APP.seleccionId) {
+        eliminarProceso(APP.seleccionId);
+    } else {
+        toast('Nada seleccionado', 'info');
+    }
+}
+
+// ===== REGISTRAR EVENTOS (independiente de IndexedDB) =====
+function registrarEventos() {
+    // Event: Cambio de cliente
+    document.getElementById('selCliente').addEventListener('change', function() {
+        APP.clienteActual = this.value;
+        console.log('[MapaProcesos] Cliente seleccionado:', APP.clienteActual);
+        actualizarInfo();
+        if (APP.db && APP.clienteActual && APP.normaActual) cargarMapa();
+    });
+
+    // Event: Cambio de norma
+    document.getElementById('selNorma').addEventListener('change', function() {
+        APP.normaActual = this.value;
+        console.log('[MapaProcesos] Norma seleccionada:', APP.normaActual);
+        actualizarInfo();
+        if (APP.db && APP.clienteActual && APP.normaActual) cargarMapa();
+    });
+
+    // Toolbar
+    document.getElementById('btnModoSeleccion').addEventListener('click', function() { setModo('seleccion'); });
+    document.getElementById('btnModoConexion').addEventListener('click', function() { setModo('conexion'); });
+    document.getElementById('btnAddEstrategico').addEventListener('click', function() { agregarProceso('estrategico'); });
+    document.getElementById('btnAddOperativo').addEventListener('click', function() { agregarProceso('operativo'); });
+    document.getElementById('btnAddApoyo').addEventListener('click', function() { agregarProceso('apoyo'); });
+    document.getElementById('btnPlantilla').addEventListener('click', function() { abrirModal('modalPlantilla'); });
+    document.getElementById('btnGuardar').addEventListener('click', guardarMapa);
+    document.getElementById('btnExportJSON').addEventListener('click', exportarJSON);
+    document.getElementById('btnImportJSON').addEventListener('click', importarJSON);
+    document.getElementById('btnExportPDF').addEventListener('click', exportarPDF);
+    document.getElementById('btnEliminarSel').addEventListener('click', eliminarSeleccionado);
+    document.getElementById('btnConfirmPlantilla').addEventListener('click', cargarPlantilla);
+
+    // Gestion clientes
+    document.getElementById('btnGestClientes').addEventListener('click', function() {
+        if (!APP.db) { toast('Base de datos no disponible', 'error'); return; }
+        renderListaClientes();
+        abrirModal('modalClientes');
+    });
+    document.getElementById('btnCrearCliente').addEventListener('click', function() {
+        var input = document.getElementById('inputNuevoCliente');
+        crearCliente(input.value);
+        input.value = '';
+    });
+    document.getElementById('inputNuevoCliente').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            crearCliente(this.value);
+            this.value = '';
+        }
+    });
+
+    // Panel ficha
+    document.getElementById('panelClose').addEventListener('click', cerrarPanel);
+    document.getElementById('btnFichaCancelar').addEventListener('click', cerrarPanel);
+    document.getElementById('btnFichaGuardar').addEventListener('click', guardarFicha);
+    document.getElementById('btnFichaEliminar').addEventListener('click', function() {
+        var id = document.getElementById('fichaId').value;
+        if (id && confirm('Eliminar este proceso?')) {
+            eliminarProceso(id);
+        }
+    });
+
+    // Import file
+    document.getElementById('fileImport').addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            procesarImport(e.target.files[0]);
+            e.target.value = '';
+        }
+    });
+
+    // Context menu
+    document.getElementById('contextMenu').addEventListener('click', function(e) {
+        var item = e.target.closest('.context-item');
+        if (!item) return;
+        var action = item.dataset.action;
+        var procId = this.dataset.procId;
+        cerrarContextMenu();
+        if (action === 'editar') abrirPanel(procId);
+        else if (action === 'duplicar') duplicarProceso(procId);
+        else if (action === 'eliminar' && confirm('Eliminar este proceso?')) eliminarProceso(procId);
+    });
+
+    // Cerrar context menu al hacer click fuera
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.context-menu')) cerrarContextMenu();
+    });
+
+    // Cerrar modales con Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            cerrarModal('modalClientes');
+            cerrarModal('modalTipoConn');
+            cerrarModal('modalPlantilla');
+            cerrarPanel();
+            cerrarContextMenu();
+            if (APP.connOrigen) cancelarConexion();
+        }
+        // Ctrl+S / Cmd+S = guardar
+        if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            guardarMapa();
+        }
+        // Supr = eliminar seleccionado
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+            eliminarSeleccionado();
+        }
+        // S = modo seleccion
+        if (e.key === 's' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            setModo('seleccion');
+        }
+        // C = modo conexion
+        if (e.key === 'c' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            setModo('conexion');
+        }
+    });
+
+    // Init drag & drop
+    initDrag();
+}
+
+// ===== INIT =====
+function init() {
+    try {
+        // 1. Registrar TODOS los event listeners primero — UI funcional siempre
+        registrarEventos();
+        setModo('seleccion');
+        console.log('[MapaProcesos] Eventos registrados OK');
+    } catch(err) {
+        console.error('[MapaProcesos] Error en registrarEventos:', err);
+        document.getElementById('toolbarInfo').textContent = 'ERROR: ' + err.message;
+        document.getElementById('toolbarInfo').style.color = 'red';
+    }
+
+    // 2. Abrir DB y cargar datos
+    try {
+        abrirDB(function() {
+            cargarClientes();
+            actualizarInfo();
+            console.log('[MapaProcesos] DB abierta y clientes cargados OK');
+        });
+    } catch(err) {
+        console.error('[MapaProcesos] Error en abrirDB:', err);
+        toast('Error al abrir base de datos: ' + err.message, 'error');
+    }
+}
+
+// Arrancar
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
