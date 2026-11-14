@@ -26,3 +26,7 @@
 | 2026-05-10 | IndexedDB con clave cliente_norma | Permite multiples mapas por cliente |
 | 2026-05-10 | 6 normas iniciales | ISO 9001, 14001, 27001, 45001, 22301, ENS |
 | 2026-05-10 | Plantillas precargadas por norma | Acelera la creacion de mapas nuevos |
+
+---
+
+> **Revisado 2026-11-13** — sin cambios de código en esta sesión (trabajo centrado en `Plataforma_Seguimiento_Proyectos`).
